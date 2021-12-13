@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 #[allow(unused_imports)]
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, bail, Result, Context};
 use cargo_toml::Manifest;
 use quote::quote;
 use syn::parse::Parser;
@@ -17,7 +17,8 @@ use print::SynFilePrint;
 fn inline_module(path: &Path) -> Result<syn::File> {
     // load the file as AST
     let (ast, errors) = InlinerBuilder::default()
-        .parse_and_inline_modules(path)?
+        .parse_and_inline_modules(path)
+        .with_context(|| format!("Failed to parse and inline modules at {}", path.display()))?
         .into_output_and_errors();
 
     for err in errors.into_iter() {
@@ -69,14 +70,15 @@ pub struct Bundler {
     binary_path: PathBuf,
     crates: Vec<(String, PathBuf)>,
 
-    out_dir: PathBuf,
     manifest: Manifest,
     /// also save content for later writing
     manifest_str: String,
+
+    out_dir: PathBuf,
 }
 
 impl Bundler {
-    pub fn new(binary: &Path) -> Result<Self> {
+    pub fn new(binary: impl AsRef<Path>) -> Result<Self> {
         let out_dir = env::var_os("OUT_DIR").ok_or_else(|| anyhow!("Missing OUT_DIR env var"))?;
         let manifest_dir = env::var_os("CARGO_MANIFEST_DIR")
             .ok_or_else(|| anyhow!("Missing CARGO_MANIFEST_DIR env var"))?;
@@ -84,21 +86,26 @@ impl Bundler {
     }
 
     pub fn new_with_dir(
-        binary: impl Into<PathBuf>,
+        binary: impl AsRef<Path>,
         out_dir: impl Into<PathBuf>,
         manifest_dir: impl Into<PathBuf>,
     ) -> Result<Self> {
-        let manifest_path = manifest_dir.into().join("Cargo.toml");
-        let manifest_str = fs::read_to_string(&manifest_path)?;
+        let manifest_dir = manifest_dir.into();
+
+        let manifest_path = manifest_dir.join("Cargo.toml");
+        let manifest_str = fs::read_to_string(&manifest_path)
+            .with_context(|| format!("Failed to read manifest at {}", &manifest_path.display()))?;
         let mut manifest = Manifest::from_str(&manifest_str)?;
         manifest.complete_from_path(&manifest_path)?;
+
         Ok(Bundler {
-            binary_path: binary.into(),
+            binary_path: manifest_dir.join(binary.as_ref()),
             crates: Default::default(),
 
-            out_dir: out_dir.into(),
             manifest,
             manifest_str,
+
+            out_dir: out_dir.into(),
         })
     }
 
@@ -123,6 +130,9 @@ impl Bundler {
     /// Also write a rust-script compatible header and vim file type footer.
     pub fn bundle(self, target: &Path) -> Result<PathBuf> {
         let target = self.out_dir.join(target);
+        if let Some(p) = target.parent() {
+            fs::create_dir_all(p).context("failed to create out dir")?;
+        }
 
         // parse the binary
         let mut binary = inline_module(&self.binary_path)?;

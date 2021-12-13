@@ -16,7 +16,7 @@ proc-macro2 = { version = "1.0.33", default-features = false, features = ["span-
 syn = { version = "1.0.82", default-features = false, features = ["parsing", "printing", "full"] }
 quote = { version = "1.0.10", default-features = false }
 
-anyhow = "1.0.51"
+anyhow = { version = "1.0.51", features = ["backtrace"] }
 thiserror = "1.0.30"
 
 cargo_toml = "0.10.2"

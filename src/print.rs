@@ -30,7 +30,12 @@ impl<'a> Display for FilePrinter<'a> {
                 matches!(attr.style, syn::AttrStyle::Inner(_)),
                 "File can only have inner attributes at top level"
             );
-            writeln!(f, "//!{}", attr.tokens)?;
+            let mut it = attr.tokens.clone().into_iter();
+            if let (Some(_), Some(TokenTree::Literal(lit)), None) = (it.next(), it.next(), it.next()) {
+                if let Lit::Str(lit) = Lit::new(lit) {
+                    writeln!(f, "//!{}", lit.value())?;
+                }
+            }
         }
         // then others
         for attr in file.attrs.iter().filter(|a| !a.path.is_ident("doc")) {
@@ -81,7 +86,7 @@ fn write_tokens_normalized(f: &mut std::fmt::Formatter, tokens: TokenStream) -> 
             TokenTree::Group(ref tt) => {
                 let (start, end) = match tt.delimiter() {
                     Delimiter::Parenthesis => ("(", ")"),
-                    Delimiter::Brace => ("{\n", "}\n"),
+                    Delimiter::Brace => ("{\n", "\n}\n"),
                     Delimiter::Bracket => ("[", "]"),
                     Delimiter::None => ("", ""),
                 };
@@ -90,7 +95,7 @@ fn write_tokens_normalized(f: &mut std::fmt::Formatter, tokens: TokenStream) -> 
                 } else {
                     write!(f, "{} ", start)?;
                     write_tokens_normalized(f, tt.stream())?;
-                    write!(f, " {}\n", end)?
+                    write!(f, " {}", end)?
                 }
             }
             TokenTree::Ident(ref tt) => write!(f, "{}", tt)?,
