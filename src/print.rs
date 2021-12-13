@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use proc_macro2::{TokenStream, TokenTree, Delimiter, Spacing};
+use proc_macro2::{Delimiter, Spacing, TokenStream, TokenTree};
 use quote::ToTokens;
 use syn::Lit;
 
@@ -25,19 +25,19 @@ impl<'a> Display for FilePrinter<'a> {
 
         // write inner attributes, we do two passes,
         // first are all doc attributes
-        for attr in file.attrs
-            .iter()
-            .filter(|a| a.path.is_ident("doc"))
-        {
-            assert!(matches!(attr.style, syn::AttrStyle::Inner(_)), "File can only have inner attributes at top level");
+        for attr in file.attrs.iter().filter(|a| a.path.is_ident("doc")) {
+            assert!(
+                matches!(attr.style, syn::AttrStyle::Inner(_)),
+                "File can only have inner attributes at top level"
+            );
             writeln!(f, "//!{}", attr.tokens)?;
         }
         // then others
-        for attr in file.attrs
-            .iter()
-            .filter(|a| !a.path.is_ident("doc"))
-        {
-            assert!(matches!(attr.style, syn::AttrStyle::Inner(_)), "File can only have inner attributes at top level");
+        for attr in file.attrs.iter().filter(|a| !a.path.is_ident("doc")) {
+            assert!(
+                matches!(attr.style, syn::AttrStyle::Inner(_)),
+                "File can only have inner attributes at top level"
+            );
             writeln!(f, "#![{}{}]", attr.path.to_token_stream(), attr.tokens)?;
         }
 
@@ -53,10 +53,10 @@ impl<'a> Display for FilePrinter<'a> {
 
 /// Write tokens same way as `TokenStream::to_string` would do, but with normalization of doc
 /// attributes into `///`.
-fn write_tokens_normalized(
-    f: &mut std::fmt::Formatter,
-    tokens: TokenStream,
-) -> std::fmt::Result {
+///
+/// Adapted from sourcegen cli @ commit 1492a97e86eee5e69a959c4347efb3c8c58e1a7e
+/// https://github.com/commure/sourcegen
+fn write_tokens_normalized(f: &mut std::fmt::Formatter, tokens: TokenStream) -> std::fmt::Result {
     let mut tokens = tokens.into_iter().peekable();
     let mut joint = false;
     let mut first = true;
@@ -111,6 +111,8 @@ fn write_tokens_normalized(
     Ok(())
 }
 
+/// Adapted from sourcegen cli @ commit 1492a97e86eee5e69a959c4347efb3c8c58e1a7e
+/// https://github.com/commure/sourcegen
 fn as_doc_comment(first: &TokenTree, second: &TokenTree) -> Option<String> {
     match (first, second) {
         (TokenTree::Punct(first), TokenTree::Group(group))

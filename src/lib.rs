@@ -1,15 +1,15 @@
-use std::path::{Path, PathBuf};
-use std::io::Write;
-use std::fs;
 use std::env;
+use std::fs;
+use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 #[allow(unused_imports)]
-use anyhow::{Result, anyhow, bail};
+use anyhow::{anyhow, bail, Result};
 use cargo_toml::Manifest;
+use quote::quote;
 use syn::parse::Parser;
 use syn_inline_mod::InlinerBuilder;
-use quote::quote;
 
 mod print;
 use print::SynFilePrint;
@@ -21,7 +21,13 @@ fn inline_module(path: &Path) -> Result<syn::File> {
         .into_output_and_errors();
 
     for err in errors.into_iter() {
-        bail!("Error when parsing {}, included by {} as mod {}: {}", err.path().display(), err.src_path().display(), err.module_name(), err.kind());
+        bail!(
+            "Error when parsing {}, included by {} as mod {}: {}",
+            err.path().display(),
+            err.src_path().display(),
+            err.module_name(),
+            err.kind()
+        );
     }
 
     Ok(ast)
@@ -42,7 +48,7 @@ fn new_manifest_comment(content: &str) -> Vec<syn::Attribute> {
     };
     // and then parse back to syn::Attribute
     let attr = syn::Attribute::parse_inner
-        .parse(attr.into())
+        .parse2(attr)
         .expect("Just quoted input can not be wrong");
     attr
 }
@@ -72,15 +78,16 @@ pub struct Bundler {
 impl Bundler {
     pub fn new(binary: &Path) -> Result<Self> {
         let out_dir = env::var_os("OUT_DIR").ok_or_else(|| anyhow!("Missing OUT_DIR env var"))?;
-        let manifest_dir = env::var_os("CARGO_MANIFEST_DIR").ok_or_else(|| anyhow!("Missing CARGO_MANIFEST_DIR env var"))?;
-        Self::new_with_dir(
-            binary,
-            out_dir,
-            manifest_dir,
-        )
+        let manifest_dir = env::var_os("CARGO_MANIFEST_DIR")
+            .ok_or_else(|| anyhow!("Missing CARGO_MANIFEST_DIR env var"))?;
+        Self::new_with_dir(binary, out_dir, manifest_dir)
     }
 
-    pub fn new_with_dir(binary: impl Into<PathBuf>, out_dir: impl Into<PathBuf>, manifest_dir: impl Into<PathBuf>) -> Result<Self> {
+    pub fn new_with_dir(
+        binary: impl Into<PathBuf>,
+        out_dir: impl Into<PathBuf>,
+        manifest_dir: impl Into<PathBuf>,
+    ) -> Result<Self> {
         let manifest_path = manifest_dir.into().join("Cargo.toml");
         let manifest_str = fs::read_to_string(&manifest_path)?;
         let mut manifest = Manifest::from_str(&manifest_str)?;
@@ -96,8 +103,12 @@ impl Bundler {
     }
 
     pub fn with_lib(mut self) -> Self {
-        if let Some((name, path)) = self.manifest.lib.as_ref()
-            .and_then(|lib| lib.name.as_ref().zip(lib.path.as_ref())) {
+        if let Some((name, path)) = self
+            .manifest
+            .lib
+            .as_ref()
+            .and_then(|lib| lib.name.as_ref().zip(lib.path.as_ref()))
+        {
             self.crates.push((name.into(), path.into()));
         }
         self
@@ -117,7 +128,8 @@ impl Bundler {
         let mut binary = inline_module(&self.binary_path)?;
 
         // parse any crate, also modulize them
-        let libs = self.crates
+        let libs = self
+            .crates
             .into_iter()
             .map(|(name, path)| {
                 let lib = inline_module(&path)?;
@@ -132,7 +144,8 @@ impl Bundler {
         // add rust-script shebang
         binary.shebang = Some("#!/usr/bin/env -S rust-script".into());
         // add doc attribute for cargo manifest, make sure we add to the head
-        let _: Vec<_> = binary.attrs
+        let _: Vec<_> = binary
+            .attrs
             .splice(..0, new_manifest_comment(&self.manifest_str))
             .collect();
 
@@ -147,7 +160,7 @@ impl Bundler {
         }
 
         // make it readable
-        format_file(&target)?;
+        // format_file(&target)?;
 
         Ok(target)
     }
@@ -155,9 +168,12 @@ impl Bundler {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
     #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
+    fn new_manifest_comment_works() {
+        let attrs = new_manifest_comment("abc\n  def");
+
+        dbg!(attrs);
     }
 }

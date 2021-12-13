@@ -1,16 +1,25 @@
 [package]
 name = "rust-script-bundler"
 version = "0.1.0"
+
+authors = ["Aetf <aetf@unlimited-code.works>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Aetf/rust-script-bundler"
+keywords = ["rust-script", "build-dependencies"]
+readme = "README.md"
+
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+syn-inline-mod = { path = "../syn-inline-mod" }
+proc-macro2 = { version = "1.0.33", default-features = false, features = ["span-locations"] }
+syn = { version = "1.0.82", default-features = false, features = ["parsing", "printing", "full"] }
+quote = { version = "1.0.10", default-features = false }
+
 anyhow = "1.0.51"
-syn-inline-mod = "0.4.0"
-syn = { version = "1.0.82", default-features = false, features = ["printing"] }
-proc-macro2 = { version = "1.0.33", features = ["span-locations"] }
-quote = "1.0.10"
 thiserror = "1.0.30"
+
 cargo_toml = "0.10.2"
 
+[dev-dependencies]
+syn = { version = "1.0.82", default-features = false, features = ["extra-traits"] }
