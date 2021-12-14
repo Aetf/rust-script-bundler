@@ -11,7 +11,7 @@ readme = "README.md"
 edition = "2021"
 
 [dependencies]
-syn-inline-mod = { path = "../syn-inline-mod" }
+syn-inline-mod = { git = "https://github.com/Aetf/syn-inline-mod.git" }
 proc-macro2 = { version = "1.0.33", default-features = false, features = ["span-locations"] }
 syn = { version = "1.0.82", default-features = false, features = ["parsing", "printing", "full"] }
 quote = { version = "1.0.10", default-features = false }

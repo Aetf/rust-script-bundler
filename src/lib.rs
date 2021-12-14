@@ -170,7 +170,7 @@ impl Bundler {
         }
 
         // make it readable
-        // format_file(&target)?;
+        format_file(&target)?;
 
         Ok(target)
     }
